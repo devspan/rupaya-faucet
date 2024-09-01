@@ -7,6 +7,7 @@ import Footer from '@/components/Footer'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://faucet.rupaya.io'),
   title: 'Rupaya Faucet - Claim RUPX',
   description:
     'Get free RUPX every 12 hours from the Rupaya Faucet. Easy to use, quick claims for Rupaya network users.',
@@ -30,6 +31,29 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     site: '@rupayacoin',
     creator: '@rupayacoin',
+  },
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png' },
+    ],
+    other: [
+      {
+        rel: 'mask-icon',
+        url: '/safari-pinned-tab.svg',
+        color: '#5bbad5',
+      },
+    ],
+  },
+  manifest: '/site.webmanifest',
+  themeColor: '#ffffff',
+  appleWebApp: {
+    title: 'Rupaya Faucet',
+    statusBarStyle: 'default',
   },
 }
 

@@ -15,7 +15,7 @@ const FAUCET_PRIVATE_KEY = getEnvVariable('FAUCET_PRIVATE_KEY')
 const RPC_URL = getEnvVariable('RPC_URL')
 const HCAPTCHA_SECRET = getEnvVariable('HCAPTCHA_SECRET_KEY')
 const FAUCET_ADDRESS = getEnvVariable('FAUCET_ADDRESS')
-const BLOCKSCOUT_API_URL = getEnvVariable('BLOCKSCOUT_API_URL')
+const BLOCKSCOUT_API_URL = 'https://scan.rupaya.io'
 
 const provider = new ethers.JsonRpcProvider(RPC_URL)
 const faucetWallet = new ethers.Wallet(FAUCET_PRIVATE_KEY, provider)
@@ -24,17 +24,41 @@ const FAUCET_AMOUNT = ethers.parseEther('0.1') // 0.1 RUPX
 const COOLDOWN_PERIOD = 12 * 60 * 60 * 1000 // 12 hours in milliseconds
 const claims: Map<string, number> = new Map()
 
+async function verifyRPCConnection() {
+  try {
+    await provider.getNetwork()
+    return true
+  } catch (error) {
+    console.error('RPC connection error:', error)
+    return false
+  }
+}
+
+async function checkFaucetBalance() {
+  const balance = await provider.getBalance(faucetWallet.address)
+  return balance >= FAUCET_AMOUNT
+}
+
+async function estimateGasPrice() {
+  const feeData = await provider.getFeeData()
+  return feeData.gasPrice ? feeData.gasPrice * BigInt(120) / BigInt(100) : undefined // 20% higher than current gas price
+}
+
 async function getFaucetBalance(): Promise<bigint> {
   try {
     const response = await axios.get(
       `${BLOCKSCOUT_API_URL}/api?module=account&action=balance&address=${FAUCET_ADDRESS}`
     )
     if (response.data.status !== '1') {
-      throw new Error(`API Error: ${response.data.message}`)
+      throw new Error(`API Error: ${response.data.message || 'Unknown error'}`)
     }
     return BigInt(response.data.result)
   } catch (error) {
-    console.error('Error fetching faucet balance:', error)
+    if (axios.isAxiosError(error)) {
+      console.error('Axios error fetching faucet balance:', error.message, error.response?.data)
+    } else {
+      console.error('Error fetching faucet balance:', error)
+    }
     throw error
   }
 }
@@ -66,17 +90,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const faucetBalance = await getFaucetBalance()
-    if (faucetBalance < FAUCET_AMOUNT) {
-      return NextResponse.json(
-        { error: 'Faucet is empty. Please try again later.' },
-        { status: 503 }
-      )
+    if (!(await verifyRPCConnection())) {
+      return NextResponse.json({ error: 'RPC connection failed' }, { status: 503 })
     }
+
+    if (!(await checkFaucetBalance())) {
+      return NextResponse.json({ error: 'Insufficient faucet balance' }, { status: 503 })
+    }
+
+    let nonce = await provider.getTransactionCount(faucetWallet.address)
 
     const tx = await faucetWallet.sendTransaction({
       to: walletAddress,
       value: FAUCET_AMOUNT,
+      gasPrice: await estimateGasPrice(),
+      nonce: nonce++,
     })
 
     const receipt = await tx.wait()

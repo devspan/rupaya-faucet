@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import FaucetForm from '@/components/FaucetForm'
 import FaucetBalance from '@/components/FaucetBalance'
 import { Droplet, Info } from 'lucide-react'

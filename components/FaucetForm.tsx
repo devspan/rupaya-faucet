@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 
-export default function Component() {
+export default function FaucetForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
   const [claimResult, setClaimResult] = useState<{ success: boolean; message: string; transactionHash?: string } | null>(null)
