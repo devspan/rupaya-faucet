@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ethers } from 'ethers'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ExclamationTriangleIcon, CheckCircledIcon } from '@radix-ui/react-icons'
 
-const FAUCET_ADDRESS = '0x092C077cca05a02021E6b3DFCb8E315F421CCCC1'
+const FAUCET_ADDRESS = '0x18e5b3dee30232CB8a83e4883E17df34d79E7296'
+const DIRECT_API_URL = `https://scan.rupaya.io/api?module=account&action=balance&address=${FAUCET_ADDRESS}`
+const FALLBACK_API_URL = '/api/faucet-balance' // This will be our server-side API route
 
 export default function FaucetBalance() {
   const [balance, setBalance] = useState<string | null>(null)
@@ -20,11 +21,30 @@ export default function FaucetBalance() {
       try {
         setIsLoading(true)
         setError(null)
-        const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL)
-        const balanceWei = await provider.getBalance(FAUCET_ADDRESS)
-        const balanceEth = ethers.formatEther(balanceWei)
-        setBalance(balanceEth)
-        setIsLow(parseFloat(balanceEth) < 10)
+        
+        // Try direct API call first
+        const directResponse = await fetch(DIRECT_API_URL)
+        let data
+        
+        if (!directResponse.ok) {
+          // If direct call fails, try fallback API
+          const fallbackResponse = await fetch(FALLBACK_API_URL)
+          if (!fallbackResponse.ok) {
+            throw new Error('Both direct and fallback API calls failed')
+          }
+          data = await fallbackResponse.json()
+        } else {
+          data = await directResponse.json()
+        }
+
+        if (data.status !== '1') {
+          throw new Error(data.message || 'Failed to fetch balance')
+        }
+        
+        const balanceWei = BigInt(data.result)
+        const balanceRUPX = Number(balanceWei) / 1e18 // Convert Wei to RUPX
+        setBalance(balanceRUPX.toFixed(6))
+        setIsLow(balanceRUPX < 10)
       } catch (error) {
         console.error('Failed to fetch balance:', error)
         setError('Failed to fetch balance. Please try again later.')
